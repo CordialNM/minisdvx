@@ -1,0 +1,78 @@
+#include <Encoder.h>
+#include <Mouse.h>
+#include <Keyboard.h>
+
+// Encoder objects for mouse control
+Encoder encoder1(2, 3);   // Encoder 1 (vertical movement)
+Encoder encoder2(0, 1);   // Encoder 2 (horizontal movement)
+
+long oldPosition1 = 0;    // Track old position of encoder 1 (vertical)
+long oldPosition2 = 0;    // Track old position of encoder 2 (horizontal)
+
+// Define the pin numbers for switches (keyboard inputs)
+const int switchPins[] = {4, 6, 7, 8, 9, 10, 5};
+const char* keyNames[] = {"Key A", "Key B", "Key C", "Key D", "Key E", "Key F", "Key G"}; // Key names to print
+
+// Track the previous state of the switches to avoid repeated triggers
+bool keyStates[7] = {false, false, false, false, false, false, false};
+
+void setup() {
+  // Start serial communication
+  Serial.begin(9600);
+
+  // Initialize the Mouse and Keyboard functionality
+  Mouse.begin();
+  Keyboard.begin();
+  
+  // Set up each switch pin as input with internal pull-up resistors
+  for (int i = 0; i < 7; i++) {
+    pinMode(switchPins[i], INPUT_PULLUP);  // Enable pull-up resistor for each switch
+  }
+}
+
+void loop() {
+  // ---- Handle Mouse Movement from Encoders ----
+  
+  // Read the current position of encoder 1 (vertical movement)
+  long newPosition1 = encoder1.read();
+  // Read the current position of encoder 2 (horizontal movement)
+  long newPosition2 = encoder2.read();
+  
+  // Calculate movement
+  long movementY = newPosition1 - oldPosition1;
+  long movementX = newPosition2 - oldPosition2;
+
+  // Move mouse vertically if encoder 1 has moved
+  if (movementY != 0) {
+    Mouse.move(0, movementY);  // Move the mouse up or down
+    oldPosition1 = newPosition1;  // Update old position for encoder 1
+  }
+
+  // Move mouse horizontally if encoder 2 has moved
+  if (movementX != 0) {
+    Mouse.move(movementX, 0);  // Move the mouse left or right
+    oldPosition2 = newPosition2;  // Update old position for encoder 2
+  }
+
+  // ---- Handle Keyboard Inputs from Switches ----
+  
+  // Check the state of each switch
+  for (int i = 0; i < 7; i++) {
+    int switchState = digitalRead(switchPins[i]);
+
+    // When a switch is pressed (LOW), send a keyboard press and print to Serial Monitor
+    if (switchState == LOW && !keyStates[i]) {
+      Serial.println(keyNames[i]);   // Print key name to Serial Monitor
+      Keyboard.press(keyNames[i][4]);  // Send corresponding keyboard key (A-G)
+      keyStates[i] = true;           // Mark this key as pressed
+    }
+
+    // When the switch is released, release the corresponding key
+    if (switchState == HIGH && keyStates[i]) {
+      Keyboard.release(keyNames[i][4]);  // Release the keyboard key
+      keyStates[i] = false;            // Mark the key as released
+    }
+  }
+
+  delay(10);  // Small delay for smoother operation
+}
